@@ -1,6 +1,17 @@
 import wx
 import os
+import ctypes
 from subprocess import Popen
+
+def is_hidden(filepath):
+    if os.name == 'nt':  # 针对 Windows 的实现
+        # 通过API看
+        attribute = ctypes.windll.kernel32.GetFileAttributesW(str(filepath))
+        # 检查 FILE_ATTRIBUTE_HIDDEN 属性
+        return attribute != -1 and (attribute & 2)  # 文件属性为 -1 时可能出错
+    else:
+        # 对于非Windows系统，以.开头的文件和文件夹为隐藏
+        return os.path.basename(filepath).startswith('.')
 
 def process_path(path):
     if path[-1] == "/" or path[-1] == "\\":
@@ -8,19 +19,21 @@ def process_path(path):
     else:
         return path + "/"
 
-def generate_folder_structure(folder_path, output_path):
+def generate_folder_structure(folder_path, output_path, include_hidden=False):
     def draw_tree(folder_path, prefix=""):
-        entries = sorted(os.listdir(folder_path))  # 获取并排序目录下的所有条目
+        entries = sorted(os.listdir(folder_path))
         tree_lines = []
         for i, entry in enumerate(entries):
-            entry_path = os.path.join(folder_path, entry)  # 连接路径
-            if i == len(entries) - 1:  # 当前目录中的最后一个条目
+            entry_path = os.path.join(folder_path, entry)
+            if not include_hidden and is_hidden(entry_path):
+                continue  # 跳过隐藏文件和文件夹
+            if i == len(entries) - 1:
                 tree_lines.append(f"{prefix}└── {entry}/" if os.path.isdir(entry_path) else f"{prefix}└── {entry}")
                 new_prefix = f"{prefix}    "
             else:
                 tree_lines.append(f"{prefix}├── {entry}/" if os.path.isdir(entry_path) else f"{prefix}├── {entry}")
                 new_prefix = f"{prefix}│   "
-            if os.path.isdir(entry_path):  # 如果条目是目录，递归调用
+            if os.path.isdir(entry_path):
                 tree_lines.extend(draw_tree(entry_path, new_prefix))
         return tree_lines
 
@@ -68,6 +81,10 @@ class VisualFileStructureWX(wx.Frame):
         self.hbox2.Add(self.output_path_text, flag=wx.ALL, border=5)
         self.vbox.Add(self.hbox2, flag=wx.EXPAND)
 
+        # 是否把目录下隐藏的文件和文件夹写进结构图中
+        self.include_hidden_checkbox = wx.CheckBox(panel, label="Include hidden files and folders")
+        self.vbox.Add(self.include_hidden_checkbox, flag=wx.ALL, border=5)
+
         # 生成按钮
         self.generate_button = wx.Button(panel, label="Generate")
         self.vbox.Add(self.generate_button, flag=wx.ALL, border=5)
@@ -94,6 +111,7 @@ class VisualFileStructureWX(wx.Frame):
     def on_generate_button(self, event):
         input_path = self.selected_folder
         output_path = self.selected_output_folder
+        include_hidden = self.include_hidden_checkbox.GetValue()
 
         if not input_path:
             wx.MessageBox("Please select input folder first", "Error", wx.OK | wx.ICON_ERROR)
@@ -103,7 +121,7 @@ class VisualFileStructureWX(wx.Frame):
             return
 
         try:
-            generate_folder_structure(input_path, output_path)
+            generate_folder_structure(input_path, output_path, include_hidden)
             wx.MessageBox(
                 "Folder structure generated successfully", "Success", wx.OK | wx.ICON_INFORMATION
             )
@@ -115,6 +133,6 @@ if __name__ == "__main__":
     app = wx.App()
     frame = VisualFileStructureWX(None)
     frame.SetTitle('Visual File Structure with GUI')
-    frame.SetSize((400, 150))
+    frame.SetSize((400, 200))
     frame.Show()
     app.MainLoop()
