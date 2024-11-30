@@ -19,12 +19,14 @@ def process_path(path):
     else:
         return path + "/"
 
-def generate_folder_structure(folder_path, output_path, include_hidden=False):
+def generate_folder_structure(folder_path, output_path, include_hidden=False, ignored_paths=None):
     def draw_tree(folder_path, prefix=""):
         entries = sorted(os.listdir(folder_path))
         tree_lines = []
         for i, entry in enumerate(entries):
             entry_path = os.path.join(folder_path, entry)
+            if entry_path in ignored_paths:
+                continue
             if not include_hidden and is_hidden(entry_path):
                 continue  # 跳过隐藏文件和文件夹
             if i == len(entries) - 1:
@@ -85,6 +87,11 @@ class VisualFileStructureWX(wx.Frame):
         self.include_hidden_checkbox = wx.CheckBox(panel, label="Include hidden files and folders")
         self.vbox.Add(self.include_hidden_checkbox, flag=wx.ALL, border=5)
 
+        # 忽略的路径
+        self.ignored_path = wx.Button(panel, label="Choose ignored files/folders")
+        self.vbox.Add(self.ignored_path, flag=wx.ALL, border=5)
+        self.ignored_path.Bind(wx.EVT_BUTTON, self.on_open_file)
+
         # 生成按钮
         self.generate_button = wx.Button(panel, label="Generate")
         self.vbox.Add(self.generate_button, flag=wx.ALL, border=5)
@@ -108,6 +115,11 @@ class VisualFileStructureWX(wx.Frame):
                 self.output_path_text.SetLabel(f"{dialog.GetPath()}")
                 self.selected_output_folder = dialog.GetPath()
 
+    def on_open_file(self, event):
+        with wx.FileDialog(self, "Choose files/folders", style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST | wx.FD_MULTIPLE) as dlg:
+            if dlg.ShowModal() == wx.ID_OK:
+                self.ignored_paths = dlg.GetPaths()
+
     def on_generate_button(self, event):
         input_path = self.selected_folder
         output_path = self.selected_output_folder
@@ -121,7 +133,7 @@ class VisualFileStructureWX(wx.Frame):
             return
 
         try:
-            generate_folder_structure(input_path, output_path, include_hidden)
+            generate_folder_structure(input_path, output_path, include_hidden, self.ignored_paths)
             wx.MessageBox(
                 "Folder structure generated successfully", "Success", wx.OK | wx.ICON_INFORMATION
             )
@@ -133,6 +145,6 @@ if __name__ == "__main__":
     app = wx.App()
     frame = VisualFileStructureWX(None)
     frame.SetTitle('Visual File Structure with GUI')
-    frame.SetSize((400, 200))
+    frame.SetSize((400, 225))
     frame.Show()
     app.MainLoop()
