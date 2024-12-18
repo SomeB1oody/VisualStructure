@@ -19,7 +19,7 @@ def process_path(path):
     else:
         return path + "/"
 
-def generate_folder_structure(folder_path, output_path, include_hidden=False, ignored_paths=None):
+def generate_folder_structure(folder_path, output_path, include_hidden=False, ignored_paths=[]):
     def draw_tree(folder_path, prefix=""):
         entries = sorted(os.listdir(folder_path))
         tree_lines = []
@@ -61,6 +61,8 @@ def generate_folder_structure(folder_path, output_path, include_hidden=False, ig
 class VisualFileStructureWX(wx.Frame):
     def __init__(self, *args, **kw):
         super(VisualFileStructureWX, self).__init__(*args, **kw)
+        
+        self.flag = False
 
         panel = wx.Panel(self)
         self.vbox = wx.BoxSizer(wx.VERTICAL)
@@ -88,7 +90,7 @@ class VisualFileStructureWX(wx.Frame):
         self.vbox.Add(self.include_hidden_checkbox, flag=wx.ALL, border=5)
 
         # 忽略的路径
-        self.ignored_path = wx.Button(panel, label="Choose ignored files/folders")
+        self.ignored_path = wx.Button(panel, label="Choose ignored files")
         self.vbox.Add(self.ignored_path, flag=wx.ALL, border=5)
         self.ignored_path.Bind(wx.EVT_BUTTON, self.on_open_file)
 
@@ -116,8 +118,9 @@ class VisualFileStructureWX(wx.Frame):
                 self.selected_output_folder = dialog.GetPath()
 
     def on_open_file(self, event):
-        with wx.FileDialog(self, "Choose files/folders", style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST | wx.FD_MULTIPLE) as dlg:
+        with wx.FileDialog(self, "Choose file(s)", style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST | wx.FD_MULTIPLE) as dlg:
             if dlg.ShowModal() == wx.ID_OK:
+                self.flag = True
                 self.ignored_paths = dlg.GetPaths()
 
     def on_generate_button(self, event):
@@ -133,7 +136,7 @@ class VisualFileStructureWX(wx.Frame):
             return
 
         try:
-            generate_folder_structure(input_path, output_path, include_hidden, self.ignored_paths)
+            generate_folder_structure(input_path, output_path, include_hidden, self.ignored_paths if self.flag else [])
             wx.MessageBox(
                 "Folder structure generated successfully", "Success", wx.OK | wx.ICON_INFORMATION
             )
