@@ -17,7 +17,7 @@ def process_path(path):
     else:
         return path + "/"
 
-def generate_folder_structure(folder_path, output_path, include_hidden=False, ignored_paths=None):
+def generate_folder_structure(folder_path, output_path, include_hidden=False, ignored_paths=[]):
     def draw_tree(folder_path, prefix=""):
         entries = sorted(os.listdir(folder_path))
         tree_lines = []
